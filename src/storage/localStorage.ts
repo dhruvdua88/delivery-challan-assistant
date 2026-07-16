@@ -18,6 +18,9 @@ export type RegisterEntry = {
   value: number;
   ewbNumber: string;
   issuedAt: string; // ISO timestamp when exported
+  // Job-work fields (present only for DIRECT_JOB_WORK) — drive Sec 143 tracking.
+  jobWorkGoodsType?: "INPUTS" | "CAPITAL_GOODS";
+  jobWorkReturnDate?: string;
 };
 
 export type CompanyMaster = {

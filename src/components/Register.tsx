@@ -2,7 +2,13 @@ import { useMemo, useState } from "react";
 import { loadRegisterEntries, deleteRegisterEntry, type RegisterEntry } from "../storage/localStorage";
 import { MOVEMENT_BY_ID } from "../gst/movementRules";
 import { buildRegisterWorkbook } from "../features/register/registerReport";
+import { buildJobWorkRows, statusLabel, type JobWorkStatus } from "../features/register/jobWork";
+import { buildItc04Workbook } from "../features/register/itc04Report";
 import { isoToDdmmyyyy, inr } from "../exports/filenames";
+
+const STATUS_COLOR: Record<JobWorkStatus, string | undefined> = {
+  OVERDUE: "var(--red)", DUE_SOON: "var(--amber)", ON_TRACK: "var(--green)", UNKNOWN: "var(--muted)",
+};
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -23,9 +29,18 @@ export function Register({ onClose }: { onClose: () => void }) {
     pendingEwb: entries.filter((e) => !e.ewbNumber).length,
   }), [entries]);
 
+  const jobWorkRows = useMemo(() => buildJobWorkRows(entries, new Date().toISOString().slice(0, 10)), [entries]);
+  const overdue = jobWorkRows.filter((r) => r.status === "OVERDUE").length;
+
   const exportXlsx = async () => {
     setBusy(true);
     try { download(await buildRegisterWorkbook(entries), `DC_Register_${new Date().toISOString().slice(0, 10)}.xlsx`); }
+    finally { setBusy(false); }
+  };
+
+  const exportItc04 = async () => {
+    setBusy(true);
+    try { download(await buildItc04Workbook(jobWorkRows), `ITC-04_helper_${new Date().toISOString().slice(0, 10)}.xlsx`); }
     finally { setBusy(false); }
   };
 
@@ -73,6 +88,44 @@ export function Register({ onClose }: { onClose: () => void }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {jobWorkRows.length > 0 && (
+        <>
+          <div className="section-h" style={{ marginTop: 18 }}>
+            Job-work returns — Section 143 {overdue > 0 && <span className="badge err" style={{ marginLeft: 6 }}>{overdue} overdue</span>}
+          </div>
+          <p className="hint">
+            Inputs must return within 1 year and capital goods within 3 years, else the movement is deemed a
+            supply on the challan date. Export the ITC-04 helper for your quarterly filing.
+          </p>
+          <div className="export-row">
+            <button type="button" className="teal" disabled={busy} onClick={exportItc04}>{busy ? "Working…" : "Export ITC-04 helper (Excel)"}</button>
+          </div>
+          <div style={{ overflowX: "auto", marginTop: 8 }}>
+            <table className="items">
+              <thead>
+                <tr>
+                  <th>DC No.</th><th>Date</th><th>Job Worker</th><th>Goods</th>
+                  <th>Return by</th><th>Expected</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobWorkRows.map((r) => (
+                  <tr key={r.entry.number}>
+                    <td>{r.entry.number}</td>
+                    <td>{isoToDdmmyyyy(r.entry.date) || "-"}</td>
+                    <td>{r.entry.consigneeName || "-"}</td>
+                    <td>{r.entry.jobWorkGoodsType === "CAPITAL_GOODS" ? "Capital" : "Inputs"}</td>
+                    <td>{isoToDdmmyyyy(r.deadline) || "-"}</td>
+                    <td>{isoToDdmmyyyy(r.expectedReturn) || "-"}</td>
+                    <td style={{ color: STATUS_COLOR[r.status], fontWeight: r.status === "OVERDUE" || r.status === "DUE_SOON" ? 700 : undefined }}>{statusLabel(r.status)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

@@ -111,6 +111,8 @@ export default function App() {
       value: sumItems(c.items),
       ewbNumber: c.ewayBill.number || "",
       issuedAt: new Date().toISOString(),
+      jobWorkGoodsType: c.movementType === "DIRECT_JOB_WORK" ? c.jobWork?.goodsType : undefined,
+      jobWorkReturnDate: c.movementType === "DIRECT_JOB_WORK" ? c.jobWork?.expectedReturnDate : undefined,
     });
   };
 
