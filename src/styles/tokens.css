@@ -20,6 +20,15 @@
 body { margin: 0; background: var(--bg); color: var(--text); }
 
 .app { max-width: 1080px; margin: 0 auto; padding: 16px; }
+
+.skip-link { position: absolute; left: -9999px; top: 8px; background: var(--navy); color: #fff; padding: 8px 14px; border-radius: 6px; z-index: 100; }
+.skip-link:focus { left: 16px; }
+
+/* Visible keyboard focus everywhere (WCAG 2.4.7). */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible,
+.step:focus-visible, .move-opt:focus-visible {
+  outline: 3px solid var(--action); outline-offset: 2px;
+}
 .appbar {
   display: flex; align-items: center; justify-content: space-between;
   background: var(--navy); color: #fff; padding: 14px 18px; border-radius: var(--radius);
@@ -91,9 +100,9 @@ table.items td.num input { text-align: right; }
 
 .findings { display: grid; gap: 8px; }
 .finding { padding: 8px 12px; border-radius: 6px; font-size: 13px; display: flex; gap: 8px; }
-.finding.error { background: #fdeceb; color: var(--red); border-left: 4px solid var(--red); }
-.finding.warning { background: #fff8ec; color: #7a4b00; border-left: 4px solid var(--amber); }
-.finding.pass { background: #e9f6ef; color: var(--green); border-left: 4px solid var(--green); }
+.finding.error { background: #fdeceb; color: var(--red); border: 1px solid #f3c2bd; }
+.finding.warning { background: #fff8ec; color: #7a4b00; border: 1px solid #f0d9a8; }
+.finding.pass { background: #e9f6ef; color: var(--green); border: 1px solid #bfe3cd; }
 
 .section-h { font-weight: 700; margin: 14px 0 6px; font-size: 13.5px; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11.5px; font-weight: 700; }

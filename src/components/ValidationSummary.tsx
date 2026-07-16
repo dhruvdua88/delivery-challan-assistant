@@ -3,7 +3,7 @@ import type { ValidationResult } from "../features/validation/validate";
 export function ValidationSummary({ result }: { result: ValidationResult }) {
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+      <div role="status" aria-live="polite" style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <span className="badge err">{result.errors.length} blocking</span>
         <span className="badge warn">{result.warnings.length} warnings</span>
         <span className="badge ok">{result.passed.length} passed</span>

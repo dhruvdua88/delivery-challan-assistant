@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import "../styles/tokens.css";
 import type { DeliveryChallan, Party } from "../models/deliveryChallan";
 import {
@@ -101,8 +102,14 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  // Move focus to the active step's panel on each step change so keyboard and
+  // screen-reader users land on the new content instead of the top of the page.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { panelRef.current?.focus(); }, [step]);
+
   return (
     <div className="app">
+      <a href="#step-panel" className="skip-link">Skip to form</a>
       <div className="appbar">
         <div>
           <h1>Delivery Challan Assistant</h1>
@@ -119,6 +126,7 @@ export default function App() {
       <Stepper step={step} setStep={setStep} />
 
       <div className="card">
+        <div id="step-panel" role="tabpanel" aria-label={`Step ${step + 1}: ${STEPS[step]}`} tabIndex={-1} ref={panelRef} style={{ outline: "none" }}>
         {step === 0 && <StepMovement c={c} patch={patch} />}
         {step === 1 && <StepParties c={c} patch={patch} setParty={setParty} />}
         {step === 2 && <StepGoods c={c} patch={patch} />}
@@ -130,6 +138,7 @@ export default function App() {
             onNew={() => { setC(emptyChallan()); setStep(0); }}
           />
         )}
+        </div>
 
         <div className="nav">
           <button className="secondary" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>← Back</button>
@@ -152,11 +161,30 @@ export default function App() {
 }
 
 function Stepper({ step, setStep }: { step: number; setStep: (n: number) => void }) {
+  const onKey = (e: ReactKeyboardEvent) => {
+    let next = step;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = Math.min(STEPS.length - 1, step + 1);
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = Math.max(0, step - 1);
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = STEPS.length - 1;
+    else return;
+    e.preventDefault();
+    setStep(next);
+  };
   return (
-    <div className="stepper" role="tablist">
+    <div className="stepper" role="tablist" aria-label="Challan steps" onKeyDown={onKey}>
       {STEPS.map((label, i) => (
-        <button key={i} role="tab" aria-selected={step === i} className={`step ${step === i ? "active" : ""} ${i < step ? "done" : ""}`} onClick={() => setStep(i)}>
-          <span className="n">{i + 1}</span>{label}
+        <button
+          key={i}
+          role="tab"
+          id={`step-tab-${i}`}
+          aria-selected={step === i}
+          aria-controls="step-panel"
+          tabIndex={step === i ? 0 : -1}
+          className={`step ${step === i ? "active" : ""} ${i < step ? "done" : ""}`}
+          onClick={() => setStep(i)}
+        >
+          <span className="n" aria-hidden="true">{i + 1}</span>{label}
         </button>
       ))}
     </div>

@@ -55,6 +55,24 @@ describe("<App /> smoke", () => {
     expect(screen.getByRole("button", { name: /Print preview/i })).toBeInTheDocument();
   });
 
+  it("exposes a skip link and an aria-live validation status", () => {
+    render(<App />);
+    expect(screen.getByText("Skip to form")).toBeInTheDocument();
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByText("Next →"));
+    const status = document.querySelector('[role="status"][aria-live="polite"]');
+    expect(status).toBeInTheDocument();
+  });
+
+  it("uses roving tabindex on the stepper tabs", () => {
+    render(<App />);
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs[0].getAttribute("tabindex")).toBe("0");
+    expect(tabs[1].getAttribute("tabindex")).toBe("-1");
+    // ArrowRight on the tablist advances the selected step
+    fireEvent.keyDown(tabs[0].parentElement!, { key: "ArrowRight" });
+    expect(screen.getByText("Step 2 — Parties and locations")).toBeInTheDocument();
+  });
+
   it("adds an item row in the goods step", () => {
     render(<App />);
     fireEvent.click(screen.getByText("Next →")); // step2

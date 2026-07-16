@@ -62,10 +62,10 @@ export function ItemGrid({ items, onChange }: Props) {
                 <td className="num" style={{ fontWeight: 600 }}>{inr(lineTotal(it))}</td>
                 <td>
                   <div className="itembtns">
-                    <button type="button" className="secondary" title="Move up" onClick={() => move(i, -1)}>↑</button>
-                    <button type="button" className="secondary" title="Move down" onClick={() => move(i, 1)}>↓</button>
-                    <button type="button" className="secondary" title="Duplicate" onClick={() => dup(it.id)}>⧉</button>
-                    <button type="button" className="danger" title="Delete" onClick={() => del(it.id)}>✕</button>
+                    <button type="button" className="secondary" title="Move up" aria-label={`Move item ${i + 1} up`} disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+                    <button type="button" className="secondary" title="Move down" aria-label={`Move item ${i + 1} down`} disabled={i === items.length - 1} onClick={() => move(i, 1)}>↓</button>
+                    <button type="button" className="secondary" title="Duplicate" aria-label={`Duplicate item ${i + 1}`} onClick={() => dup(it.id)}>⧉</button>
+                    <button type="button" className="danger" title="Delete" aria-label={`Delete item ${i + 1}`} disabled={items.length === 1} onClick={() => del(it.id)}>✕</button>
                   </div>
                 </td>
               </tr>
