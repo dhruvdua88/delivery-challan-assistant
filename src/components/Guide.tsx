@@ -294,6 +294,16 @@ export function Guide({ onPrepare }: { onPrepare: () => void }) {
           </p>
         </section>
 
+        <GuideCompliance onPrepare={onPrepare} />
+      </div>
+    </div>
+  );
+}
+
+
+function GuideCompliance({ onPrepare }: { onPrepare: () => void }) {
+  return (
+    <>
         <section id="validity" aria-labelledby="h-val">
           <h2 id="h-val">8. Validity, Part B, cancellation</h2>
           <h3>Validity — Rule 138(10)</h3>
@@ -384,7 +394,6 @@ export function Guide({ onPrepare }: { onPrepare: () => void }) {
           </ul>
           <p className="cite">Re-check every rule/circular against the law in force before relying on it. This guide is assistance, not advice.</p>
         </section>
-      </div>
-    </div>
+    </>
   );
 }

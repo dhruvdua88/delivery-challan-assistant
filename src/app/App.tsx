@@ -16,6 +16,7 @@ import { AddressBlock } from "../components/AddressBlock";
 import { ItemGrid } from "../components/ItemGrid";
 import { ValidationSummary } from "../components/ValidationSummary";
 import { ChallanPreview } from "../components/ChallanPreview";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 // Guide (large static content) and Templates (pulls in Dexie) are code-split
 // so they stay out of the initial bundle until opened.
 const Guide = lazy(() => import("../components/Guide").then((m) => ({ default: m.Guide })));
@@ -63,10 +64,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist the draft on change when autosave is enabled (local only).
+  // Latest challan, without re-subscribing the save listeners on every edit.
+  const cRef = useRef(c);
+  useEffect(() => { cRef.current = c; }, [c]);
+
+  // When autosave is on, persist the draft as the tab is hidden or closed —
+  // a browser-event subscription (no per-keystroke writes, no state updates).
   useEffect(() => {
-    if (autosave) saveDraft(c);
-  }, [c, autosave]);
+    if (!autosave) return;
+    const save = () => saveDraft(cRef.current);
+    window.addEventListener("pagehide", save);
+    document.addEventListener("visibilitychange", save);
+    return () => {
+      window.removeEventListener("pagehide", save);
+      document.removeEventListener("visibilitychange", save);
+    };
+  }, [autosave]);
 
   const register = useMemo(() => loadRegister(), [step]);
   const aatoAbove5Cr = useMemo(() => loadCompany()?.aatoAbove5Cr ?? false, [companyRev, showCompany]);
@@ -179,6 +192,7 @@ export default function App() {
         </div>
       </div>
 
+      <ErrorBoundary>
       {view === "guide" ? (
         <Suspense fallback={<div className="card"><p className="hint">Loading guide…</p></div>}>
           <Guide onPrepare={() => setView("prepare")} />
@@ -232,6 +246,7 @@ export default function App() {
       </div>
       </>
       )}
+      </ErrorBoundary>
     </div>
   );
 }
