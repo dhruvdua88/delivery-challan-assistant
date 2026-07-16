@@ -3,7 +3,6 @@ import "../styles/tokens.css";
 import type { DeliveryChallan, Party } from "../models/deliveryChallan";
 import {
   emptyChallan,
-  grandTotal,
   isInterstate,
   COPY_TYPES,
   TRANSPORT_MODES,
@@ -15,9 +14,8 @@ import { validateChallan } from "../features/validation/validate";
 import { AddressBlock } from "../components/AddressBlock";
 import { ItemGrid } from "../components/ItemGrid";
 import { ValidationSummary } from "../components/ValidationSummary";
-import { createWord } from "../exports/createWord";
-import { createExcel } from "../exports/createExcel";
-import { wordFileName, excelFileName, jsonFileName, isoToDdmmyyyy, inr } from "../exports/filenames";
+import { ChallanPreview } from "../components/ChallanPreview";
+import { wordFileName, excelFileName, jsonFileName, isoToDdmmyyyy } from "../exports/filenames";
 import {
   loadCompany, saveCompany, clearCompany, loadRegister, addToRegister, resetAll,
 } from "../storage/localStorage";
@@ -61,21 +59,32 @@ export default function App() {
   const register = useMemo(() => loadRegister(), [step]);
   const result = useMemo(() => validateChallan(c, register), [c, register]);
   const challanAllowed = isChallanExportAllowed(c.movementType);
-  const total = grandTotal(c.items);
 
   const setParty = (key: "billFrom" | "consignee", p: Party) => patch({ [key]: p } as any);
 
+  const [busy, setBusy] = useState<"word" | "excel" | null>(null);
+
+  // docx and exceljs are heavy — load them only when an export is requested,
+  // so they are code-split out of the initial bundle.
   const doWord = async (draft: boolean) => {
-    const co = loadCompany();
-    const blob = await createWord(c, { draft, companyName: co?.legalName });
-    download(blob, wordFileName(c.challanNumber, c.challanDate));
-    addToRegister(c.challanNumber);
+    setBusy("word");
+    try {
+      const co = loadCompany();
+      const { createWord } = await import("../exports/createWord");
+      const blob = await createWord(c, { draft, companyName: co?.legalName });
+      download(blob, wordFileName(c.challanNumber, c.challanDate));
+      addToRegister(c.challanNumber);
+    } finally { setBusy(null); }
   };
   const doExcel = async (draft: boolean) => {
-    const co = loadCompany();
-    const blob = await createExcel(c, { draft, companyName: co?.legalName });
-    download(blob, excelFileName(c.challanNumber, c.challanDate));
-    addToRegister(c.challanNumber);
+    setBusy("excel");
+    try {
+      const co = loadCompany();
+      const { createExcel } = await import("../exports/createExcel");
+      const blob = await createExcel(c, { draft, companyName: co?.legalName });
+      download(blob, excelFileName(c.challanNumber, c.challanDate));
+      addToRegister(c.challanNumber);
+    } finally { setBusy(null); }
   };
   const doJson = () => {
     download(new Blob([JSON.stringify(c, null, 2)], { type: "application/json" }), jsonFileName(c.challanNumber, c.challanDate));
@@ -116,7 +125,7 @@ export default function App() {
         {step === 3 && <StepTransport c={c} patch={patch} />}
         {step === 4 && (
           <StepReview
-            c={c} result={result} challanAllowed={challanAllowed} total={total}
+            c={c} result={result} challanAllowed={challanAllowed} busy={busy}
             doWord={doWord} doExcel={doExcel} doJson={doJson}
             onNew={() => { setC(emptyChallan()); setStep(0); }}
           />
@@ -346,8 +355,9 @@ function StepTransport({ c, patch }: { c: DeliveryChallan; patch: (p: Partial<De
   );
 }
 
-function StepReview({ c, result, challanAllowed, total, doWord, doExcel, doJson, onNew }: {
-  c: DeliveryChallan; result: ReturnType<typeof validateChallan>; challanAllowed: boolean; total: number;
+function StepReview({ c, result, challanAllowed, busy, doWord, doExcel, doJson, onNew }: {
+  c: DeliveryChallan; result: ReturnType<typeof validateChallan>; challanAllowed: boolean;
+  busy: "word" | "excel" | null;
   doWord: (d: boolean) => void; doExcel: (d: boolean) => void; doJson: () => void; onNew: () => void;
 }) {
   const blocked = result.errors.length > 0 || !challanAllowed;
@@ -355,23 +365,16 @@ function StepReview({ c, result, challanAllowed, total, doWord, doExcel, doJson,
   return (
     <>
       <h2>Step 5 — Review, validate and export</h2>
-      <p className="hint">Export unlocks only when there are no blocking errors.</p>
+      <p className="hint">Export unlocks only when there are no blocking errors. The preview below prints on A4 landscape.</p>
 
-      <div className="preview" style={{ marginBottom: 14 }}>
-        <div className="prow"><strong>{c.challanNumber || "(no number)"}</strong><span>{isoToDdmmyyyy(c.challanDate) || "(no date)"}</span></div>
-        <div className="prow"><span>Movement</span><span>{MOVEMENT_BY_ID[c.movementType].label}</span></div>
-        <div className="prow"><span>Bill From</span><span>{c.billFrom.legalName || "-"} · {c.billFrom.gstinOrUrp || "-"}</span></div>
-        <div className="prow"><span>Dispatch From</span><span>{c.dispatchFrom.city || "-"} ({c.dispatchFrom.stateCode || "-"})</span></div>
-        <div className="prow"><span>Consignee</span><span>{c.consignee.legalName || "-"} · {c.consignee.gstinOrUrp || "-"}</span></div>
-        <div className="prow"><span>Items</span><span>{c.items.length} line(s)</span></div>
-        <div className="prow"><strong>Consignment value</strong><strong>INR {inr(total)}</strong></div>
-      </div>
+      <ChallanPreview c={c} draft={draftMode} />
 
       <ValidationSummary result={result} />
 
       <div className="export-row">
-        <button disabled={blocked} onClick={() => doWord(draftMode)}>{draftMode ? "Download DRAFT Word" : "Download editable Word"}</button>
-        <button className="teal" disabled={blocked} onClick={() => doExcel(draftMode)}>{draftMode ? "Download DRAFT Excel" : "Download Excel workbook"}</button>
+        <button disabled={blocked || busy !== null} onClick={() => doWord(draftMode)}>{busy === "word" ? "Preparing…" : draftMode ? "Download DRAFT Word" : "Download editable Word"}</button>
+        <button className="teal" disabled={blocked || busy !== null} onClick={() => doExcel(draftMode)}>{busy === "excel" ? "Preparing…" : draftMode ? "Download DRAFT Excel" : "Download Excel workbook"}</button>
+        <button className="secondary" onClick={() => window.print()}>Print preview</button>
         <button className="secondary" onClick={doJson}>Save draft JSON</button>
         <button className="secondary" onClick={() => { if (confirm("Start a new challan?")) onNew(); }}>Start a new challan</button>
       </div>

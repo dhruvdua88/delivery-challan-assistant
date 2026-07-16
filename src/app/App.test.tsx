@@ -47,6 +47,14 @@ describe("<App /> smoke", () => {
     expect(screen.getAllByText(/blocking/i).length).toBeGreaterThan(0);
   });
 
+  it("renders the print-like preview on the review step", () => {
+    render(<App />);
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByText("Next →"));
+    expect(document.getElementById("challan-print")).toBeInTheDocument();
+    expect(screen.getByText("Bill From / Consignor")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Print preview/i })).toBeInTheDocument();
+  });
+
   it("adds an item row in the goods step", () => {
     render(<App />);
     fireEvent.click(screen.getByText("Next →")); // step2

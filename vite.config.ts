@@ -10,6 +10,9 @@ const base = process.env.BASE_PATH ?? '/delivery-challan-assistant/'
 export default defineConfig({
   plugins: [react()],
   base,
+  // exceljs/docx are dynamically imported and code-split into their own chunks,
+  // loaded only when the user exports. The large lazy chunk is expected.
+  build: { chunkSizeWarningLimit: 1000 },
   test: {
     environment: 'jsdom',
     globals: true,
