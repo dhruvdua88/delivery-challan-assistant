@@ -1,6 +1,7 @@
+import { memo } from "react";
 import type { ValidationResult } from "../features/validation/validate";
 
-export function ValidationSummary({ result }: { result: ValidationResult }) {
+export const ValidationSummary = memo(function ValidationSummary({ result }: { result: ValidationResult }) {
   return (
     <div>
       <div role="status" aria-live="polite" style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
@@ -43,4 +44,4 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
       )}
     </div>
   );
-}
+});

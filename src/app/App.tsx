@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import "../styles/tokens.css";
 import type { DeliveryChallan, Party } from "../models/deliveryChallan";
@@ -48,7 +48,9 @@ export default function App() {
   const [autosave, setAutosave] = useState(() => isAutosaveEnabled());
   const [companyRev, setCompanyRev] = useState(0); // bump when company master changes
 
-  const patch = (p: Partial<DeliveryChallan>) => setC((cur) => ({ ...cur, ...p }));
+  // Stable identity so memoised children (ItemGrid) don't re-render when an
+  // unrelated field changes.
+  const patch = useCallback((p: Partial<DeliveryChallan>) => setC((cur) => ({ ...cur, ...p })), []);
 
   // Offer to restore an opt-in autosaved draft on first load.
   useEffect(() => {
@@ -354,6 +356,7 @@ function PartyEditor({ party, onChange, idPrefix, requireGstin }: { party: Party
 }
 
 function StepGoods({ c, patch }: { c: DeliveryChallan; patch: (p: Partial<DeliveryChallan>) => void }) {
+  const onItems = useCallback((items: DeliveryChallan["items"]) => patch({ items }), [patch]);
   return (
     <>
       <h2>Step 3 — Document, goods and value</h2>
@@ -406,7 +409,7 @@ function StepGoods({ c, patch }: { c: DeliveryChallan; patch: (p: Partial<Delive
       )}
 
       <div className="block-title">Items</div>
-      <ItemGrid items={c.items} onChange={(items) => patch({ items })} />
+      <ItemGrid items={c.items} onChange={onItems} />
     </>
   );
 }

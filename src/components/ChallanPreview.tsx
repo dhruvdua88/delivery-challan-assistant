@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { DeliveryChallan, Address } from "../models/deliveryChallan";
 import { grandTotal, lineTotal, totalPackages, totalQuantity } from "../models/deliveryChallan";
 import { MOVEMENT_BY_ID, declarationFor } from "../gst/movementRules";
@@ -18,7 +19,7 @@ function fmtAddr(a: Address): string {
 // On-screen print-like preview. Mirrors the Word/Excel layout so the user sees
 // what they will get before exporting. The `challan-print` root is the only
 // element shown when printing (see print rules in tokens.css).
-export function ChallanPreview({ c, draft }: { c: DeliveryChallan; draft: boolean }) {
+export const ChallanPreview = memo(function ChallanPreview({ c, draft }: { c: DeliveryChallan; draft: boolean }) {
   const co = loadCompany();
   const decl = declarationFor(c.movementType);
   return (
@@ -108,4 +109,4 @@ export function ChallanPreview({ c, draft }: { c: DeliveryChallan; draft: boolea
       <div className="cp-foot">{FOOTER_LINE}</div>
     </div>
   );
-}
+});
