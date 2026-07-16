@@ -76,6 +76,23 @@ export type DeliveryChallan = {
 
   transport: Transport;
   ewayBill: EwayBill;
+
+  // Job-work return control (Section 143). Optional but drives deemed-supply warnings.
+  jobWork?: JobWorkControl;
+};
+
+export type JobWorkGoodsType = "INPUTS" | "CAPITAL_GOODS";
+
+export type JobWorkControl = {
+  goodsType: JobWorkGoodsType;
+  expectedReturnDate?: string; // ISO
+};
+
+// Section 143: inputs must return within 1 year, capital goods within 3 years,
+// else the movement is deemed a supply on the day the goods were sent out.
+export const JOB_WORK_RETURN_LIMIT_MONTHS: Record<JobWorkGoodsType, number> = {
+  INPUTS: 12,
+  CAPITAL_GOODS: 36,
 };
 
 export const COPY_TYPES: CopyType[] = [
@@ -140,7 +157,16 @@ export function emptyChallan(): DeliveryChallan {
     items: [newItem()],
     transport: { mode: "Road" },
     ewayBill: { transactionType: "REGULAR" },
+    jobWork: { goodsType: "INPUTS" },
   };
+}
+
+// Add `months` to an ISO date, return ISO yyyy-mm-dd.
+export function addMonthsIso(iso: string, months: number): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
 }
 
 // ---- derived helpers ----

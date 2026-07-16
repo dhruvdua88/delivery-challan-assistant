@@ -279,6 +279,27 @@ function StepGoods({ c, patch }: { c: DeliveryChallan; patch: (p: Partial<Delive
           <span className="ex">{isInterstate(c) ? "Interstate movement — place of supply required." : "Intrastate movement."}</span>
         </div>
       </div>
+      {c.movementType === "DIRECT_JOB_WORK" && (
+        <>
+          <div className="block-title">Job-work return control (Section 143)</div>
+          <div className="grid">
+            <div className="field">
+              <label htmlFor="jwtype">Goods type</label>
+              <select id="jwtype" value={c.jobWork?.goodsType ?? "INPUTS"} onChange={(e) => patch({ jobWork: { goodsType: e.target.value as any, expectedReturnDate: c.jobWork?.expectedReturnDate } })}>
+                <option value="INPUTS">Inputs — return within 1 year</option>
+                <option value="CAPITAL_GOODS">Capital goods — return within 3 years</option>
+              </select>
+              <span className="ex">Not returned in time ⇒ deemed a supply on the challan date.</span>
+            </div>
+            <div className="field">
+              <label htmlFor="jwret">Expected return date</label>
+              <input id="jwret" type="date" value={c.jobWork?.expectedReturnDate ?? ""} onChange={(e) => patch({ jobWork: { goodsType: c.jobWork?.goodsType ?? "INPUTS", expectedReturnDate: e.target.value } })} />
+              <span className="ex">Track the return and report in ITC-04.</span>
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="block-title">Items</div>
       <ItemGrid items={c.items} onChange={(items) => patch({ items })} />
     </>
@@ -365,6 +386,7 @@ function StepReview({ c, result, challanAllowed, total, doWord, doExcel, doJson,
           <li>Use a consecutive, unique challan number of ≤ 16 characters and an exact, non-contradictory purpose.</li>
           <li>Maintain HSN / UQC / quantity / value quality; complete the e-way bill and Part B before movement.</li>
           <li>Use controlled copies, obtain signature, and keep the work order, LR/GR and EWB PDF together.</li>
+          <li>For job work, return inputs within 1 year and capital goods within 3 years (Section 143), else the movement is deemed a supply — and report in ITC-04.</li>
           <li>Track goods sent, returned, rejected, scrapped and overdue; reconcile gate register, stock ledger, DC register, EWB and return receipt.</li>
         </ul>
       </details>

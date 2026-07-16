@@ -1,5 +1,5 @@
 import type { DeliveryChallan, ChallanItem } from "../../models/deliveryChallan";
-import { grandTotal, isInterstate, lineTotal } from "../../models/deliveryChallan";
+import { grandTotal, isInterstate, lineTotal, addMonthsIso, JOB_WORK_RETURN_LIMIT_MONTHS } from "../../models/deliveryChallan";
 import { checkGstin, checkGstinOrUrp } from "../../gst/gstin";
 import { isValidUqc } from "../../gst/uqc";
 import { isChallanExportAllowed } from "../../gst/movementRules";
@@ -98,8 +98,32 @@ export function validateChallan(
   if (total <= 0) err("Total consignment value must be greater than zero.", "items");
   else pass(`Line arithmetic reconciles to INR ${total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}.`);
 
+  // 5b. HSN digit-length advisory (Notification 78/2020-CT): AATO > Rs 5 cr
+  // must use 6-digit HSN; others at least 4-digit for B2B. Warn on 4/5-digit.
+  c.items.forEach((it, i) => {
+    const h = (it.hsn || "").trim();
+    if (/^[0-9]{4,8}$/.test(h) && h.length < 6)
+      warn(`Item ${i + 1}: HSN is ${h.length}-digit. Taxpayers with turnover above Rs 5 crore must report 6-digit HSN (Notification 78/2020-CT).`, `items.${i}.hsn`);
+  });
+
   // 6. Copy marking
   if (!c.copyType) err("Select a copy marking.", "copyType");
+
+  // 6b. Job-work return control (Section 143)
+  if (c.movementType === "DIRECT_JOB_WORK" && c.jobWork) {
+    const months = JOB_WORK_RETURN_LIMIT_MONTHS[c.jobWork.goodsType];
+    const label = c.jobWork.goodsType === "INPUTS" ? "inputs (1 year)" : "capital goods (3 years)";
+    if (isValidDate(c.challanDate)) {
+      const deadline = addMonthsIso(c.challanDate, months);
+      if (c.jobWork.expectedReturnDate) {
+        if (c.jobWork.expectedReturnDate > deadline)
+          warn(`Expected return date is beyond the Section 143 limit for ${label}. Goods not returned by ${deadline} are deemed supplied on the challan date.`, "jobWork.expectedReturnDate");
+        else pass(`Expected return date is within the Section 143 limit for ${label}.`);
+      } else {
+        warn(`Set an expected return date. Under Section 143, ${label} not returned in time are deemed a supply — track the return and file ITC-04.`, "jobWork.expectedReturnDate");
+      }
+    }
+  }
 
   // 7. GSTIN state-code vs selected state (blocking mismatch)
   crossCheckGstinState(c.billFrom, "Bill From", err);

@@ -89,6 +89,27 @@ describe("validateChallan", () => {
     expect(r.errors.some((e) => /12 digits/i.test(e.message))).toBe(true);
   });
 
+  it("warns when job-work return date exceeds the Section 143 limit", () => {
+    const c = validChallan();
+    c.jobWork = { goodsType: "INPUTS", expectedReturnDate: "2028-01-01" }; // >1yr from 2026-07-16
+    const r = validateChallan(c, []);
+    expect(r.warnings.some((w) => /Section 143 limit/i.test(w.message))).toBe(true);
+  });
+
+  it("passes when job-work return date is within the Section 143 limit", () => {
+    const c = validChallan();
+    c.jobWork = { goodsType: "INPUTS", expectedReturnDate: "2026-10-01" };
+    const r = validateChallan(c, []);
+    expect(r.passed.some((p) => /within the Section 143 limit/i.test(p.message))).toBe(true);
+  });
+
+  it("gives a 6-digit HSN advisory for a 4-digit HSN", () => {
+    const c = validChallan();
+    c.items[0].hsn = "8537";
+    const r = validateChallan(c, []);
+    expect(r.warnings.some((w) => /6-digit HSN/i.test(w.message))).toBe(true);
+  });
+
   it("requires place of supply for interstate", () => {
     const c = validChallan();
     c.placeOfSupplyStateCode = "";

@@ -298,7 +298,7 @@ function buildChecklistSheet(wb: ExcelJS.Workbook) {
     "E-way bill generated and Part B complete before gate exit.",
     "Controlled copies printed and authorised signature obtained.",
     "Work order / LR / EWB PDF / packing support attached together.",
-    "Job-work return tracking / applicable ITC-04 control set up.",
+    "Job-work return tracked (Sec 143: inputs 1 yr / capital goods 3 yr) and ITC-04 filed (half-yearly if AATO > Rs 5 cr, else yearly).",
     "Gate register, stock ledger, DC register, EWB and return receipt reconciled.",
   ];
   controls.forEach((s, i) => {
