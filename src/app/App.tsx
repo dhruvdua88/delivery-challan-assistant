@@ -16,6 +16,7 @@ import { AddressBlock } from "../components/AddressBlock";
 import { ItemGrid } from "../components/ItemGrid";
 import { ValidationSummary } from "../components/ValidationSummary";
 import { ChallanPreview } from "../components/ChallanPreview";
+import { Guide } from "../components/Guide";
 import { wordFileName, excelFileName, jsonFileName, isoToDdmmyyyy } from "../exports/filenames";
 import { sampleChallan } from "../features/transaction/sample";
 import {
@@ -126,6 +127,8 @@ export default function App() {
   const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => { panelRef.current?.focus(); }, [step]);
 
+  const [view, setView] = useState<"prepare" | "guide">("prepare");
+
   return (
     <div className="app">
       <a href="#step-panel" className="skip-link">Skip to form</a>
@@ -135,12 +138,17 @@ export default function App() {
           <div className="sub">Rule 55 non-supply movements · runs entirely in your browser · no data leaves this device</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button className={view === "guide" ? "" : "secondary"} onClick={() => setView((v) => (v === "guide" ? "prepare" : "guide"))}>{view === "guide" ? "← Back to form" : "📘 Guide"}</button>
           <button className="secondary" onClick={() => { if (confirm("Load generic sample data? This replaces the current challan.")) { setC(sampleChallan()); setStep(0); } }}>Load sample</button>
           <button className="secondary" onClick={() => setShowCompany((s) => !s)}>Company Master</button>
           <button className="ghost" style={{ color: "#fff" }} onClick={() => { if (confirm("Start a new challan? Unsaved data will be cleared.")) { setC(emptyChallan()); setStep(0); } }}>New</button>
         </div>
       </div>
 
+      {view === "guide" ? (
+        <Guide onPrepare={() => setView("prepare")} />
+      ) : (
+      <>
       {showCompany && <CompanyMaster onClose={() => setShowCompany(false)} onApply={(p) => setC((cur) => ({ ...cur, billFrom: p }))} onSaved={() => setCompanyRev((r) => r + 1)} />}
 
       <Stepper step={step} setStep={setStep} />
@@ -180,6 +188,8 @@ export default function App() {
         </label>
         <button className="ghost" style={{ marginLeft: 8, color: "var(--red)" }} onClick={() => { if (confirm("Reset the entire app and clear all saved company data and the challan register?")) { resetAll(); setAutosave(false); setC(emptyChallan()); setStep(0); } }}>Reset entire app</button>
       </div>
+      </>
+      )}
     </div>
   );
 }

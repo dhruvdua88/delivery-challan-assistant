@@ -73,6 +73,17 @@ describe("<App /> smoke", () => {
     expect(screen.getByText("Step 2 — Parties and locations")).toBeInTheDocument();
   });
 
+  it("opens the definitive guide and shows core sections", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Guide/i }));
+    expect(screen.getByText(/Delivery challans & e-way bills/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Which e-way bill for a delivery challan/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Bill From – Dispatch From/).length).toBeGreaterThan(0);
+    // back to the form
+    fireEvent.click(screen.getByRole("button", { name: /Back to form/i }));
+    expect(screen.getByText("Step 1 — Choose the movement")).toBeInTheDocument();
+  });
+
   it("adds an item row in the goods step", () => {
     render(<App />);
     fireEvent.click(screen.getByText("Next →")); // step2
