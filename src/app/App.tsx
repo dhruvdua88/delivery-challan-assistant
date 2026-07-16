@@ -17,8 +17,10 @@ import { ItemGrid } from "../components/ItemGrid";
 import { ValidationSummary } from "../components/ValidationSummary";
 import { ChallanPreview } from "../components/ChallanPreview";
 import { wordFileName, excelFileName, jsonFileName, isoToDdmmyyyy } from "../exports/filenames";
+import { sampleChallan } from "../features/transaction/sample";
 import {
   loadCompany, saveCompany, clearCompany, loadRegister, addToRegister, resetAll,
+  isAutosaveEnabled, setAutosaveEnabled, loadDraft, saveDraft,
 } from "../storage/localStorage";
 
 const STEPS = ["Movement", "Parties", "Goods & Value", "Transport & EWB", "Review & Export"];
@@ -35,8 +37,24 @@ export default function App() {
   const [step, setStep] = useState(0);
   const [c, setC] = useState<DeliveryChallan>(() => emptyChallan());
   const [showCompany, setShowCompany] = useState(false);
+  const [autosave, setAutosave] = useState(() => isAutosaveEnabled());
+  const [companyRev, setCompanyRev] = useState(0); // bump when company master changes
 
   const patch = (p: Partial<DeliveryChallan>) => setC((cur) => ({ ...cur, ...p }));
+
+  // Offer to restore an opt-in autosaved draft on first load.
+  useEffect(() => {
+    if (isAutosaveEnabled()) {
+      const d = loadDraft();
+      if (d && confirm("Restore your autosaved draft challan?")) setC(d);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist the draft on change when autosave is enabled (local only).
+  useEffect(() => {
+    if (autosave) saveDraft(c);
+  }, [c, autosave]);
 
   // Keep dispatchFrom synced to billFrom while "same" is checked.
   useEffect(() => {
@@ -58,7 +76,8 @@ export default function App() {
   }, [c.dispatchSameAsBillFrom]);
 
   const register = useMemo(() => loadRegister(), [step]);
-  const result = useMemo(() => validateChallan(c, register), [c, register]);
+  const aatoAbove5Cr = useMemo(() => loadCompany()?.aatoAbove5Cr ?? false, [companyRev, showCompany]);
+  const result = useMemo(() => validateChallan(c, register, { aatoAbove5Cr }), [c, register, aatoAbove5Cr]);
   const challanAllowed = isChallanExportAllowed(c.movementType);
 
   const setParty = (key: "billFrom" | "consignee", p: Party) => patch({ [key]: p } as any);
@@ -116,12 +135,13 @@ export default function App() {
           <div className="sub">Rule 55 non-supply movements · runs entirely in your browser · no data leaves this device</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button className="secondary" onClick={() => { if (confirm("Load generic sample data? This replaces the current challan.")) { setC(sampleChallan()); setStep(0); } }}>Load sample</button>
           <button className="secondary" onClick={() => setShowCompany((s) => !s)}>Company Master</button>
           <button className="ghost" style={{ color: "#fff" }} onClick={() => { if (confirm("Start a new challan? Unsaved data will be cleared.")) { setC(emptyChallan()); setStep(0); } }}>New</button>
         </div>
       </div>
 
-      {showCompany && <CompanyMaster onClose={() => setShowCompany(false)} onApply={(p) => setC((cur) => ({ ...cur, billFrom: p }))} />}
+      {showCompany && <CompanyMaster onClose={() => setShowCompany(false)} onApply={(p) => setC((cur) => ({ ...cur, billFrom: p }))} onSaved={() => setCompanyRev((r) => r + 1)} />}
 
       <Stepper step={step} setStep={setStep} />
 
@@ -154,7 +174,11 @@ export default function App() {
       <div className="notice">
         This is a compliance-assistance tool, not a substitute for transaction-specific advice from your GST reviewer.
         Company data you enter in Company Master is stored only in this browser's localStorage.
-        <button className="ghost" style={{ marginLeft: 8, color: "var(--red)" }} onClick={() => { if (confirm("Reset the entire app and clear all saved company data and the challan register?")) { resetAll(); setC(emptyChallan()); setStep(0); } }}>Reset entire app</button>
+        <label className="checkbox" style={{ display: "inline-flex", marginLeft: 8 }}>
+          <input type="checkbox" checked={autosave} onChange={(e) => { setAutosave(e.target.checked); setAutosaveEnabled(e.target.checked); if (e.target.checked) saveDraft(c); }} />
+          <span>Autosave this draft to this browser (opt-in)</span>
+        </label>
+        <button className="ghost" style={{ marginLeft: 8, color: "var(--red)" }} onClick={() => { if (confirm("Reset the entire app and clear all saved company data and the challan register?")) { resetAll(); setAutosave(false); setC(emptyChallan()); setStep(0); } }}>Reset entire app</button>
       </div>
     </div>
   );
@@ -408,6 +432,9 @@ function StepReview({ c, result, challanAllowed, busy, doWord, doExcel, doJson, 
       </div>
       {!challanAllowed && <div className="stop" style={{ marginTop: 12 }}><strong>Delivery-challan export is blocked for an own-branch different-GSTIN transfer.</strong> Use your tax-invoice workflow.</div>}
 
+      <div className="notice" style={{ marginTop: 12 }}>
+        <strong>Rule 55(1) particulars:</strong> a delivery challan must carry date and serially-unique number, consignor and consignee names/addresses/GSTINs, HSN and description, quantity (provisional where not determinable), taxable value, tax rate and amount where applicable, place of supply for interstate movement, and signature. This tool captures these for a non-supply movement; confirm nothing is left blank before dispatch.
+      </div>
       <details className="why">
         <summary>Why these checks matter</summary>
         <ul>
@@ -425,17 +452,23 @@ function StepReview({ c, result, challanAllowed, busy, doWord, doExcel, doJson, 
   );
 }
 
-function CompanyMaster({ onClose, onApply }: { onClose: () => void; onApply: (p: Party) => void }) {
-  const [party, setParty] = useState<Party>(() => loadCompany() || { legalName: "", gstinOrUrp: "", address: { locationName: "", line1: "", line2: "", city: "", district: "", pinCode: "", stateName: "", stateCode: "" } });
+function CompanyMaster({ onClose, onApply, onSaved }: { onClose: () => void; onApply: (p: Party) => void; onSaved: () => void }) {
+  const existing = loadCompany();
+  const [party, setParty] = useState<Party>(() => existing || { legalName: "", gstinOrUrp: "", address: { locationName: "", line1: "", line2: "", city: "", district: "", pinCode: "", stateName: "", stateCode: "" } });
+  const [aatoAbove5Cr, setAato] = useState<boolean>(() => existing?.aatoAbove5Cr ?? false);
   return (
     <div className="card" style={{ borderColor: "var(--teal)" }}>
       <h2>Company Master</h2>
       <p className="hint">Stored only in this browser's localStorage. Use "Apply as Bill From" to load it into the current challan.</p>
       <PartyEditor party={party} onChange={setParty} idPrefix="co" requireGstin />
+      <label className="checkbox">
+        <input type="checkbox" checked={aatoAbove5Cr} onChange={(e) => setAato(e.target.checked)} />
+        <span>Aggregate Annual Turnover is above Rs 5 crore — require 6-digit HSN (Notification 78/2020-CT).</span>
+      </label>
       <div className="export-row">
-        <button onClick={() => { saveCompany(party); alert("Saved to this browser."); }}>Save company data</button>
+        <button onClick={() => { saveCompany({ ...party, aatoAbove5Cr }); onSaved(); alert("Saved to this browser."); }}>Save company data</button>
         <button className="teal" onClick={() => { onApply(party); onClose(); }}>Apply as Bill From</button>
-        <button className="secondary danger" onClick={() => { clearCompany(); alert("Cleared saved company data."); }}>Clear saved company data</button>
+        <button className="secondary danger" onClick={() => { clearCompany(); onSaved(); alert("Cleared saved company data."); }}>Clear saved company data</button>
         <button className="ghost" onClick={onClose}>Close</button>
       </div>
     </div>

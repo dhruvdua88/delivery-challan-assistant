@@ -30,10 +30,17 @@ export type ValidationResult = {
   canExportDraft: boolean; // no blocking errors except a blank EWB
 };
 
+export type ValidateOptions = {
+  // When the taxpayer's AATO exceeds Rs 5 cr, 6-digit HSN is mandatory
+  // (Notification 78/2020-CT) — a 4/5-digit HSN becomes a blocking error.
+  aatoAbove5Cr?: boolean;
+};
+
 // existingNumbers: challan numbers already used in the local register (for uniqueness)
 export function validateChallan(
   c: DeliveryChallan,
-  existingNumbers: string[] = []
+  existingNumbers: string[] = [],
+  options: ValidateOptions = {}
 ): ValidationResult {
   const errors: Finding[] = [];
   const warnings: Finding[] = [];
@@ -102,8 +109,11 @@ export function validateChallan(
   // must use 6-digit HSN; others at least 4-digit for B2B. Warn on 4/5-digit.
   c.items.forEach((it, i) => {
     const h = (it.hsn || "").trim();
-    if (/^[0-9]{4,8}$/.test(h) && h.length < 6)
-      warn(`Item ${i + 1}: HSN is ${h.length}-digit. Taxpayers with turnover above Rs 5 crore must report 6-digit HSN (Notification 78/2020-CT).`, `items.${i}.hsn`);
+    if (/^[0-9]{4,8}$/.test(h) && h.length < 6) {
+      const msg = `Item ${i + 1}: HSN is ${h.length}-digit. Taxpayers with turnover above Rs 5 crore must report 6-digit HSN (Notification 78/2020-CT).`;
+      if (options.aatoAbove5Cr) err(msg, `items.${i}.hsn`);
+      else warn(msg, `items.${i}.hsn`);
+    }
   });
 
   // 6. Copy marking

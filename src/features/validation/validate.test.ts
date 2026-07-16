@@ -110,6 +110,14 @@ describe("validateChallan", () => {
     expect(r.warnings.some((w) => /6-digit HSN/i.test(w.message))).toBe(true);
   });
 
+  it("makes 4-digit HSN a blocking error when AATO is above Rs 5 crore", () => {
+    const c = validChallan();
+    c.items[0].hsn = "8537";
+    const r = validateChallan(c, [], { aatoAbove5Cr: true });
+    expect(r.errors.some((e) => /6-digit HSN/i.test(e.message))).toBe(true);
+    expect(r.canExportFinal).toBe(false);
+  });
+
   it("requires place of supply for interstate", () => {
     const c = validChallan();
     c.placeOfSupplyStateCode = "";

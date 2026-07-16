@@ -9,6 +9,9 @@ export type CompanyMaster = {
   legalName: string;
   gstinOrUrp: string;
   address: DeliveryChallan["billFrom"]["address"];
+  // Aggregate Annual Turnover band — drives the HSN digit requirement
+  // (Notification 78/2020-CT: > Rs 5 cr must report 6-digit HSN).
+  aatoAbove5Cr?: boolean;
 };
 
 export function loadCompany(): CompanyMaster | null {
@@ -45,6 +48,17 @@ export function addToRegister(challanNumber: string): void {
     reg.push(n);
     localStorage.setItem(REGISTER_KEY, JSON.stringify(reg));
   }
+}
+
+const AUTOSAVE_KEY = "dca.autosave.enabled.v1";
+
+export function isAutosaveEnabled(): boolean {
+  return localStorage.getItem(AUTOSAVE_KEY) === "1";
+}
+
+export function setAutosaveEnabled(on: boolean): void {
+  if (on) localStorage.setItem(AUTOSAVE_KEY, "1");
+  else { localStorage.removeItem(AUTOSAVE_KEY); clearDraft(); }
 }
 
 export function loadDraft(): DeliveryChallan | null {

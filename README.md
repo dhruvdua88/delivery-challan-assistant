@@ -17,6 +17,8 @@ See [PRIVACY.md](./PRIVACY.md).
 - Validates before export: GSTIN format + checksum, GSTIN-vs-state match, 6-digit PIN, ≤16-char unique challan number, resolved HSN/UQC, positive values, 12-digit e-way bill number, unresolved-marker (`VERIFY`/`TBD`/`XXX`) blocking, and more.
 - Derives the correct **e-way bill transaction type** (`Regular` vs `Bill From – Dispatch From`) and shows a plain-language checklist. It does **not** submit anything to the portal.
 - Generates an **editable `.docx`** (A4 landscape) and a **formula-driven `.xlsx`** (Challan + EWB Guide + Dispatch Checklist), a **draft JSON** for local save/re-import, and watermarks output `DRAFT — E-WAY BILL PENDING — NOT FOR DISPATCH` when the EWB is blank.
+- Enforces **Section 143** job-work return control (inputs 1 yr / capital goods 3 yr deemed-supply), **ITC-04** reminders, and an **HSN 6-digit** rule that becomes blocking when Company Master marks AATO above Rs 5 cr (Notification 78/2020-CT).
+- Extras: **print-like preview** with A4-landscape print CSS, **Load sample** generic data, **opt-in draft autosave**, keyboard-navigable stepper and WCAG 2.1 AA focus/announcements.
 
 ## Local commands
 
