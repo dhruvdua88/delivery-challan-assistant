@@ -20,12 +20,14 @@ import { ChallanPreview } from "../components/ChallanPreview";
 // so they stay out of the initial bundle until opened.
 const Guide = lazy(() => import("../components/Guide").then((m) => ({ default: m.Guide })));
 const Templates = lazy(() => import("../components/Templates").then((m) => ({ default: m.Templates })));
+const Register = lazy(() => import("../components/Register").then((m) => ({ default: m.Register })));
 import { wordFileName, excelFileName, jsonFileName, isoToDdmmyyyy } from "../exports/filenames";
 import { sampleChallan } from "../features/transaction/sample";
 import {
-  loadCompany, saveCompany, clearCompany, loadRegister, addToRegister, resetAll,
+  loadCompany, saveCompany, clearCompany, loadRegister, addToRegister, addRegisterEntry, resetAll,
   isAutosaveEnabled, setAutosaveEnabled, loadDraft, saveDraft,
 } from "../storage/localStorage";
+import { grandTotal as sumItems } from "../models/deliveryChallan";
 
 const STEPS = ["Movement", "Parties", "Goods & Value", "Transport & EWB", "Review & Export"];
 
@@ -42,6 +44,7 @@ export default function App() {
   const [c, setC] = useState<DeliveryChallan>(() => emptyChallan());
   const [showCompany, setShowCompany] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
   const [autosave, setAutosave] = useState(() => isAutosaveEnabled());
   const [companyRev, setCompanyRev] = useState(0); // bump when company master changes
 
@@ -88,6 +91,25 @@ export default function App() {
 
   const [busy, setBusy] = useState<"word" | "excel" | null>(null);
 
+  // Record a rich register entry whenever a challan is exported.
+  const recordRegister = () => {
+    if (!c.challanNumber.trim()) return;
+    addToRegister(c.challanNumber);
+    addRegisterEntry({
+      number: c.challanNumber.trim(),
+      date: c.challanDate,
+      movementType: c.movementType,
+      billFromName: c.billFrom.legalName,
+      consigneeName: c.consignee.legalName,
+      consigneeGstin: c.consignee.gstinOrUrp,
+      placeOfSupply: c.placeOfSupplyStateCode,
+      itemCount: c.items.length,
+      value: sumItems(c.items),
+      ewbNumber: c.ewayBill.number || "",
+      issuedAt: new Date().toISOString(),
+    });
+  };
+
   // docx and exceljs are heavy — load them only when an export is requested,
   // so they are code-split out of the initial bundle.
   const doWord = async (draft: boolean) => {
@@ -97,7 +119,7 @@ export default function App() {
       const { createWord } = await import("../exports/createWord");
       const blob = await createWord(c, { draft, companyName: co?.legalName });
       download(blob, wordFileName(c.challanNumber, c.challanDate));
-      addToRegister(c.challanNumber);
+      recordRegister();
     } finally { setBusy(null); }
   };
   const doExcel = async (draft: boolean) => {
@@ -107,7 +129,7 @@ export default function App() {
       const { createExcel } = await import("../exports/createExcel");
       const blob = await createExcel(c, { draft, companyName: co?.legalName });
       download(blob, excelFileName(c.challanNumber, c.challanDate));
-      addToRegister(c.challanNumber);
+      recordRegister();
     } finally { setBusy(null); }
   };
   const doJson = () => {
@@ -143,6 +165,7 @@ export default function App() {
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" className={view === "guide" ? "" : "secondary"} onClick={() => setView((v) => (v === "guide" ? "prepare" : "guide"))}>{view === "guide" ? "← Back to form" : "📘 Guide"}</button>
           <button type="button" className="secondary" onClick={() => setShowTemplates((s) => !s)}>Templates</button>
+          <button type="button" className="secondary" onClick={() => setShowRegister((s) => !s)}>Register</button>
           <button type="button" className="secondary" onClick={() => { if (confirm("Load generic sample data? This replaces the current challan.")) { setC(sampleChallan()); setStep(0); } }}>Load sample</button>
           <button type="button" className="secondary" onClick={() => setShowCompany((s) => !s)}>Company Master</button>
           <button type="button" className="ghost" style={{ color: "#fff" }} onClick={() => { if (confirm("Start a new challan? Unsaved data will be cleared.")) { setC(emptyChallan()); setStep(0); } }}>New</button>
@@ -156,6 +179,8 @@ export default function App() {
       ) : (
       <>
       {showTemplates && <Suspense fallback={<div className="card"><p className="hint">Loading templates…</p></div>}><Templates current={c} onLoad={(loaded) => { setC(loaded); setStep(0); }} onClose={() => setShowTemplates(false)} /></Suspense>}
+
+      {showRegister && <Suspense fallback={<div className="card"><p className="hint">Loading register…</p></div>}><Register onClose={() => setShowRegister(false)} /></Suspense>}
 
       {showCompany && <CompanyMaster onClose={() => setShowCompany(false)} onApply={(p) => setC((cur) => ({ ...cur, billFrom: p }))} onSaved={() => setCompanyRev((r) => r + 1)} />}
 

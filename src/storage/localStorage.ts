@@ -2,8 +2,23 @@
 import type { DeliveryChallan } from "../models/deliveryChallan";
 
 const CO_KEY = "dca.company.v1";
-const REGISTER_KEY = "dca.register.v1"; // used challan numbers
+const REGISTER_KEY = "dca.register.v1"; // used challan numbers (uniqueness)
+const REGISTER_ENTRIES_KEY = "dca.register.entries.v1"; // rich issued-DC register
 const DRAFT_KEY = "dca.draft.v1"; // opt-in autosave
+
+export type RegisterEntry = {
+  number: string;
+  date: string; // challan date ISO
+  movementType: string;
+  billFromName: string;
+  consigneeName: string;
+  consigneeGstin: string;
+  placeOfSupply: string;
+  itemCount: number;
+  value: number;
+  ewbNumber: string;
+  issuedAt: string; // ISO timestamp when exported
+};
 
 export type CompanyMaster = {
   legalName: string;
@@ -50,6 +65,31 @@ export function addToRegister(challanNumber: string): void {
   }
 }
 
+export function loadRegisterEntries(): RegisterEntry[] {
+  try {
+    const raw = localStorage.getItem(REGISTER_ENTRIES_KEY);
+    return raw ? (JSON.parse(raw) as RegisterEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Record (or refresh) a rich register entry for an issued challan. Keyed by
+// challan number — re-exporting the same number updates its entry.
+export function addRegisterEntry(entry: RegisterEntry): void {
+  if (!entry.number.trim()) return;
+  const entries = loadRegisterEntries();
+  const idx = entries.findIndex((e) => e.number.toUpperCase() === entry.number.toUpperCase());
+  if (idx >= 0) entries[idx] = entry;
+  else entries.push(entry);
+  localStorage.setItem(REGISTER_ENTRIES_KEY, JSON.stringify(entries));
+}
+
+export function deleteRegisterEntry(number: string): void {
+  const entries = loadRegisterEntries().filter((e) => e.number.toUpperCase() !== number.toUpperCase());
+  localStorage.setItem(REGISTER_ENTRIES_KEY, JSON.stringify(entries));
+}
+
 const AUTOSAVE_KEY = "dca.autosave.enabled.v1";
 
 export function isAutosaveEnabled(): boolean {
@@ -82,4 +122,5 @@ export function resetAll(): void {
   clearCompany();
   clearDraft();
   localStorage.removeItem(REGISTER_KEY);
+  localStorage.removeItem(REGISTER_ENTRIES_KEY);
 }
