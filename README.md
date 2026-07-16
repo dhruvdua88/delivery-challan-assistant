@@ -27,6 +27,9 @@ npm run typecheck  # tsc project build (no emit issues)
 npm run test       # unit + export tests (vitest)
 npm run build      # production build to dist/
 npm run preview    # preview the production build
+
+npx playwright install chromium   # one-time, before the first e2e run
+npm run test:e2e   # Playwright end-to-end (builds + previews automatically)
 ```
 
 ## Deployment (GitHub Pages)

@@ -34,3 +34,9 @@ Delivery_Challan_*
 
 # tooling caches
 .impeccable/
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
