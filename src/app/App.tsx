@@ -17,6 +17,7 @@ import { ItemGrid } from "../components/ItemGrid";
 import { ValidationSummary } from "../components/ValidationSummary";
 import { ChallanPreview } from "../components/ChallanPreview";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { PerfNote } from "../components/PerfNote";
 // Guide (large static content) and Templates (pulls in Dexie) are code-split
 // so they stay out of the initial bundle until opened.
 const Guide = lazy(() => import("../components/Guide").then((m) => ({ default: m.Guide })));
@@ -247,6 +248,7 @@ export default function App() {
       </>
       )}
       </ErrorBoundary>
+      <PerfNote />
     </div>
   );
 }
