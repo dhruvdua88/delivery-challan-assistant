@@ -1,3 +1,4 @@
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { ChallanItem } from "../models/deliveryChallan";
 import { lineTotal, newItem, grandTotal, totalQuantity } from "../models/deliveryChallan";
 import { UQC_MASTER } from "../gst/uqc";
@@ -8,7 +9,11 @@ type Props = {
   onChange: (items: ChallanItem[]) => void;
 };
 
+// Pure parser — module scope so it isn't rebuilt every render.
+const numeric = (v: string) => (v === "" ? 0 : Math.max(0, Number(v.replace(/[^0-9.]/g, ""))));
+
 export function ItemGrid({ items, onChange }: Props) {
+  const [bodyRef] = useAutoAnimate<HTMLTableSectionElement>();
   const update = (id: string, patch: Partial<ChallanItem>) =>
     onChange(items.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   const add = () => onChange([...items, newItem()]);
@@ -24,7 +29,6 @@ export function ItemGrid({ items, onChange }: Props) {
     [copy[idx], copy[j]] = [copy[j], copy[idx]];
     onChange(copy);
   };
-  const numeric = (v: string) => (v === "" ? 0 : Math.max(0, Number(v.replace(/[^0-9.]/g, ""))));
 
   return (
     <div>
@@ -44,7 +48,7 @@ export function ItemGrid({ items, onChange }: Props) {
               <th style={{ width: 110 }}>Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody ref={bodyRef}>
             {items.map((it, i) => (
               <tr key={it.id}>
                 <td style={{ textAlign: "center" }}>{i + 1}</td>

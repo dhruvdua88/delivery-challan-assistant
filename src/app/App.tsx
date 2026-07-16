@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, lazy, Suspense } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import "../styles/tokens.css";
 import type { DeliveryChallan, Party } from "../models/deliveryChallan";
@@ -16,7 +16,10 @@ import { AddressBlock } from "../components/AddressBlock";
 import { ItemGrid } from "../components/ItemGrid";
 import { ValidationSummary } from "../components/ValidationSummary";
 import { ChallanPreview } from "../components/ChallanPreview";
-import { Guide } from "../components/Guide";
+// Guide (large static content) and Templates (pulls in Dexie) are code-split
+// so they stay out of the initial bundle until opened.
+const Guide = lazy(() => import("../components/Guide").then((m) => ({ default: m.Guide })));
+const Templates = lazy(() => import("../components/Templates").then((m) => ({ default: m.Templates })));
 import { wordFileName, excelFileName, jsonFileName, isoToDdmmyyyy } from "../exports/filenames";
 import { sampleChallan } from "../features/transaction/sample";
 import {
@@ -38,6 +41,7 @@ export default function App() {
   const [step, setStep] = useState(0);
   const [c, setC] = useState<DeliveryChallan>(() => emptyChallan());
   const [showCompany, setShowCompany] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [autosave, setAutosave] = useState(() => isAutosaveEnabled());
   const [companyRev, setCompanyRev] = useState(0); // bump when company master changes
 
@@ -57,31 +61,30 @@ export default function App() {
     if (autosave) saveDraft(c);
   }, [c, autosave]);
 
-  // Keep dispatchFrom synced to billFrom while "same" is checked.
-  useEffect(() => {
-    if (c.dispatchSameAsBillFrom) {
-      setC((cur) => ({ ...cur, dispatchFrom: { ...cur.billFrom.address } }));
-    }
-  }, [c.dispatchSameAsBillFrom, c.billFrom.address]);
-
-  useEffect(() => {
-    if (c.shipToSameAsConsignee) {
-      setC((cur) => ({ ...cur, shipTo: { ...cur.consignee.address } }));
-    }
-  }, [c.shipToSameAsConsignee, c.consignee.address]);
-
-  // EWB transaction type derives from dispatch-vs-bill.
-  useEffect(() => {
-    const tt = inferEwbTransactionType(c.dispatchSameAsBillFrom);
-    setC((cur) => ({ ...cur, ewayBill: { ...cur.ewayBill, transactionType: tt } }));
-  }, [c.dispatchSameAsBillFrom]);
-
   const register = useMemo(() => loadRegister(), [step]);
   const aatoAbove5Cr = useMemo(() => loadCompany()?.aatoAbove5Cr ?? false, [companyRev, showCompany]);
   const result = useMemo(() => validateChallan(c, register, { aatoAbove5Cr }), [c, register, aatoAbove5Cr]);
   const challanAllowed = isChallanExportAllowed(c.movementType);
 
-  const setParty = (key: "billFrom" | "consignee", p: Party) => patch({ [key]: p } as any);
+  // Party setters keep the "same as" mirror addresses in sync inside the same
+  // update (no derived-state effects), avoiding extra render passes.
+  const setParty = (key: "billFrom" | "consignee", p: Party) =>
+    setC((cur) => {
+      if (key === "billFrom")
+        return { ...cur, billFrom: p, dispatchFrom: cur.dispatchSameAsBillFrom ? { ...p.address } : cur.dispatchFrom };
+      return { ...cur, consignee: p, shipTo: cur.shipToSameAsConsignee ? { ...p.address } : cur.shipTo };
+    });
+
+  const setDispatchSame = (on: boolean) =>
+    setC((cur) => ({
+      ...cur,
+      dispatchSameAsBillFrom: on,
+      dispatchFrom: on ? { ...cur.billFrom.address } : cur.dispatchFrom,
+      ewayBill: { ...cur.ewayBill, transactionType: inferEwbTransactionType(on) },
+    }));
+
+  const setShipSame = (on: boolean) =>
+    setC((cur) => ({ ...cur, shipToSameAsConsignee: on, shipTo: on ? { ...cur.consignee.address } : cur.shipTo }));
 
   const [busy, setBusy] = useState<"word" | "excel" | null>(null);
 
@@ -138,25 +141,30 @@ export default function App() {
           <div className="sub">Rule 55 non-supply movements · runs entirely in your browser · no data leaves this device</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className={view === "guide" ? "" : "secondary"} onClick={() => setView((v) => (v === "guide" ? "prepare" : "guide"))}>{view === "guide" ? "← Back to form" : "📘 Guide"}</button>
-          <button className="secondary" onClick={() => { if (confirm("Load generic sample data? This replaces the current challan.")) { setC(sampleChallan()); setStep(0); } }}>Load sample</button>
-          <button className="secondary" onClick={() => setShowCompany((s) => !s)}>Company Master</button>
-          <button className="ghost" style={{ color: "#fff" }} onClick={() => { if (confirm("Start a new challan? Unsaved data will be cleared.")) { setC(emptyChallan()); setStep(0); } }}>New</button>
+          <button type="button" className={view === "guide" ? "" : "secondary"} onClick={() => setView((v) => (v === "guide" ? "prepare" : "guide"))}>{view === "guide" ? "← Back to form" : "📘 Guide"}</button>
+          <button type="button" className="secondary" onClick={() => setShowTemplates((s) => !s)}>Templates</button>
+          <button type="button" className="secondary" onClick={() => { if (confirm("Load generic sample data? This replaces the current challan.")) { setC(sampleChallan()); setStep(0); } }}>Load sample</button>
+          <button type="button" className="secondary" onClick={() => setShowCompany((s) => !s)}>Company Master</button>
+          <button type="button" className="ghost" style={{ color: "#fff" }} onClick={() => { if (confirm("Start a new challan? Unsaved data will be cleared.")) { setC(emptyChallan()); setStep(0); } }}>New</button>
         </div>
       </div>
 
       {view === "guide" ? (
-        <Guide onPrepare={() => setView("prepare")} />
+        <Suspense fallback={<div className="card"><p className="hint">Loading guide…</p></div>}>
+          <Guide onPrepare={() => setView("prepare")} />
+        </Suspense>
       ) : (
       <>
+      {showTemplates && <Suspense fallback={<div className="card"><p className="hint">Loading templates…</p></div>}><Templates current={c} onLoad={(loaded) => { setC(loaded); setStep(0); }} onClose={() => setShowTemplates(false)} /></Suspense>}
+
       {showCompany && <CompanyMaster onClose={() => setShowCompany(false)} onApply={(p) => setC((cur) => ({ ...cur, billFrom: p }))} onSaved={() => setCompanyRev((r) => r + 1)} />}
 
       <Stepper step={step} setStep={setStep} />
 
       <div className="card">
-        <div id="step-panel" role="tabpanel" aria-label={`Step ${step + 1}: ${STEPS[step]}`} tabIndex={-1} ref={panelRef} style={{ outline: "none" }}>
+        <div key={step} id="step-panel" role="tabpanel" aria-label={`Step ${step + 1}: ${STEPS[step]}`} tabIndex={-1} ref={panelRef} style={{ outline: "none" }}>
         {step === 0 && <StepMovement c={c} patch={patch} />}
-        {step === 1 && <StepParties c={c} patch={patch} setParty={setParty} />}
+        {step === 1 && <StepParties c={c} patch={patch} setParty={setParty} setDispatchSame={setDispatchSame} setShipSame={setShipSame} />}
         {step === 2 && <StepGoods c={c} patch={patch} />}
         {step === 3 && <StepTransport c={c} patch={patch} />}
         {step === 4 && (
@@ -169,9 +177,9 @@ export default function App() {
         </div>
 
         <div className="nav">
-          <button className="secondary" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>← Back</button>
+          <button type="button" className="secondary" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>← Back</button>
           {step < 4
-            ? <button onClick={() => setStep((s) => Math.min(4, s + 1))}>Next →</button>
+            ? <button type="button" onClick={() => setStep((s) => Math.min(4, s + 1))}>Next →</button>
             : <label className="secondary" style={{ padding: "9px 16px", borderRadius: 6, cursor: "pointer", border: "1px solid var(--border)" }}>
                 Import draft JSON
                 <input type="file" accept="application/json" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && importJson(e.target.files[0])} />
@@ -186,7 +194,7 @@ export default function App() {
           <input type="checkbox" checked={autosave} onChange={(e) => { setAutosave(e.target.checked); setAutosaveEnabled(e.target.checked); if (e.target.checked) saveDraft(c); }} />
           <span>Autosave this draft to this browser (opt-in)</span>
         </label>
-        <button className="ghost" style={{ marginLeft: 8, color: "var(--red)" }} onClick={() => { if (confirm("Reset the entire app and clear all saved company data and the challan register?")) { resetAll(); setAutosave(false); setC(emptyChallan()); setStep(0); } }}>Reset entire app</button>
+        <button type="button" className="ghost" style={{ marginLeft: 8, color: "var(--red)" }} onClick={() => { if (confirm("Reset the entire app and clear all saved company data and the challan register?")) { resetAll(); setAutosave(false); setC(emptyChallan()); setStep(0); } }}>Reset entire app</button>
       </div>
       </>
       )}
@@ -209,7 +217,8 @@ function Stepper({ step, setStep }: { step: number; setStep: (n: number) => void
     <div className="stepper" role="tablist" aria-label="Challan steps" onKeyDown={onKey}>
       {STEPS.map((label, i) => (
         <button
-          key={i}
+          key={label}
+          type="button"
           role="tab"
           id={`step-tab-${i}`}
           aria-selected={step === i}
@@ -267,7 +276,7 @@ function StepMovement({ c, patch }: { c: DeliveryChallan; patch: (p: Partial<Del
   );
 }
 
-function StepParties({ c, patch, setParty }: { c: DeliveryChallan; patch: (p: Partial<DeliveryChallan>) => void; setParty: (k: "billFrom" | "consignee", p: Party) => void }) {
+function StepParties({ c, patch, setParty, setDispatchSame, setShipSame }: { c: DeliveryChallan; patch: (p: Partial<DeliveryChallan>) => void; setParty: (k: "billFrom" | "consignee", p: Party) => void; setDispatchSame: (on: boolean) => void; setShipSame: (on: boolean) => void }) {
   return (
     <>
       <h2>Step 2 — Parties and locations</h2>
@@ -278,7 +287,7 @@ function StepParties({ c, patch, setParty }: { c: DeliveryChallan; patch: (p: Pa
 
       <div className="block-title">B · Actual Dispatch From</div>
       <div className="checkbox">
-        <input id="dispatch-same" type="checkbox" checked={c.dispatchSameAsBillFrom} onChange={(e) => patch({ dispatchSameAsBillFrom: e.target.checked })} />
+        <input id="dispatch-same" type="checkbox" checked={c.dispatchSameAsBillFrom} onChange={(e) => setDispatchSame(e.target.checked)} />
         <label htmlFor="dispatch-same">Same as Bill From address</label>
       </div>
       {!c.dispatchSameAsBillFrom
@@ -290,7 +299,7 @@ function StepParties({ c, patch, setParty }: { c: DeliveryChallan; patch: (p: Pa
 
       <div className="block-title">D · Actual Ship To / Delivery Address</div>
       <div className="checkbox">
-        <input id="shipto-same" type="checkbox" checked={c.shipToSameAsConsignee} onChange={(e) => patch({ shipToSameAsConsignee: e.target.checked })} />
+        <input id="shipto-same" type="checkbox" checked={c.shipToSameAsConsignee} onChange={(e) => setShipSame(e.target.checked)} />
         <label htmlFor="shipto-same">Same as consignee address</label>
       </div>
       {!c.shipToSameAsConsignee
@@ -434,11 +443,11 @@ function StepReview({ c, result, challanAllowed, busy, doWord, doExcel, doJson, 
       <ValidationSummary result={result} />
 
       <div className="export-row">
-        <button disabled={blocked || busy !== null} onClick={() => doWord(draftMode)}>{busy === "word" ? "Preparing…" : draftMode ? "Download DRAFT Word" : "Download editable Word"}</button>
-        <button className="teal" disabled={blocked || busy !== null} onClick={() => doExcel(draftMode)}>{busy === "excel" ? "Preparing…" : draftMode ? "Download DRAFT Excel" : "Download Excel workbook"}</button>
-        <button className="secondary" onClick={() => window.print()}>Print preview</button>
-        <button className="secondary" onClick={doJson}>Save draft JSON</button>
-        <button className="secondary" onClick={() => { if (confirm("Start a new challan?")) onNew(); }}>Start a new challan</button>
+        <button type="button" disabled={blocked || busy !== null} onClick={() => doWord(draftMode)}>{busy === "word" ? "Preparing…" : draftMode ? "Download DRAFT Word" : "Download editable Word"}</button>
+        <button type="button" className="teal" disabled={blocked || busy !== null} onClick={() => doExcel(draftMode)}>{busy === "excel" ? "Preparing…" : draftMode ? "Download DRAFT Excel" : "Download Excel workbook"}</button>
+        <button type="button" className="secondary" onClick={() => window.print()}>Print preview</button>
+        <button type="button" className="secondary" onClick={doJson}>Save draft JSON</button>
+        <button type="button" className="secondary" onClick={() => { if (confirm("Start a new challan?")) onNew(); }}>Start a new challan</button>
       </div>
       {!challanAllowed && <div className="stop" style={{ marginTop: 12 }}><strong>Delivery-challan export is blocked for an own-branch different-GSTIN transfer.</strong> Use your tax-invoice workflow.</div>}
 
@@ -476,10 +485,10 @@ function CompanyMaster({ onClose, onApply, onSaved }: { onClose: () => void; onA
         <span>Aggregate Annual Turnover is above Rs 5 crore — require 6-digit HSN (Notification 78/2020-CT).</span>
       </label>
       <div className="export-row">
-        <button onClick={() => { saveCompany({ ...party, aatoAbove5Cr }); onSaved(); alert("Saved to this browser."); }}>Save company data</button>
-        <button className="teal" onClick={() => { onApply(party); onClose(); }}>Apply as Bill From</button>
-        <button className="secondary danger" onClick={() => { clearCompany(); onSaved(); alert("Cleared saved company data."); }}>Clear saved company data</button>
-        <button className="ghost" onClick={onClose}>Close</button>
+        <button type="button" onClick={() => { saveCompany({ ...party, aatoAbove5Cr }); onSaved(); alert("Saved to this browser."); }}>Save company data</button>
+        <button type="button" className="teal" onClick={() => { onApply(party); onClose(); }}>Apply as Bill From</button>
+        <button type="button" className="secondary danger" onClick={() => { clearCompany(); onSaved(); alert("Cleared saved company data."); }}>Clear saved company data</button>
+        <button type="button" className="ghost" onClick={onClose}>Close</button>
       </div>
     </div>
   );

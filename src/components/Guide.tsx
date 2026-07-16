@@ -31,7 +31,7 @@ export function Guide({ onPrepare }: { onPrepare: () => void }) {
           <a key={s.id} href={`#${s.id}`}>{s.title}</a>
         ))}
         <div style={{ marginTop: 12 }}>
-          <button className="teal" style={{ width: "100%" }} onClick={onPrepare}>Prepare a challan →</button>
+          <button type="button" className="teal" style={{ width: "100%" }} onClick={onPrepare}>Prepare a challan →</button>
         </div>
       </nav>
 
@@ -100,12 +100,12 @@ export function Guide({ onPrepare }: { onPrepare: () => void }) {
             {" "}<strong>tax invoice with IGST (or CGST+SGST)</strong> — <strong>not</strong> a zero-tax
             delivery challan. This app blocks delivery-challan export for that route.
           </div>
-          <div className="flow" role="list" aria-label="Which document decision flow">
-            <div className="node q" role="listitem">Is ownership/title passing, or is it a deemed supply (Schedule I)?</div>
-            <div className="node no" role="listitem"><strong>No</strong> → genuine non-supply movement (job work, repair, exhibition, same-GSTIN transfer) → <strong>Delivery Challan (Rule 55)</strong>.</div>
-            <div className="node yes" role="listitem"><strong>Yes</strong> → supply → is the recipient a different GSTIN (distinct person) or an outside buyer? → <strong>Tax Invoice + GST (s.31)</strong>.</div>
-            <div className="node q" role="listitem">Supply but quantity/consideration not yet known (liquid gas, sale-on-approval)? → DC now, invoice within the s.31(7)/Rule 55(4) window.</div>
-          </div>
+          <ul className="flow" aria-label="Which document decision flow">
+            <li className="node q">Is ownership/title passing, or is it a deemed supply (Schedule I)?</li>
+            <li className="node no"><strong>No</strong> → genuine non-supply movement (job work, repair, exhibition, same-GSTIN transfer) → <strong>Delivery Challan (Rule 55)</strong>.</li>
+            <li className="node yes"><strong>Yes</strong> → supply → is the recipient a different GSTIN (distinct person) or an outside buyer? → <strong>Tax Invoice + GST (s.31)</strong>.</li>
+            <li className="node q">Supply but quantity/consideration not yet known (liquid gas, sale-on-approval)? → DC now, invoice within the s.31(7)/Rule 55(4) window.</li>
+          </ul>
           <div className="callout warn">
             <strong>Using the wrong document.</strong> Moving a taxable supply on a DC does not convert it into
             a non-supply. The department can recover the tax with interest (s.50) and penalty (s.73/74), and
@@ -367,7 +367,7 @@ export function Guide({ onPrepare }: { onPrepare: () => void }) {
             <li>For job work, return inputs within 1 year / capital goods within 3 years (s.143) and file <strong>ITC-04</strong>.</li>
             <li>Reconcile the gate register, stock ledger, DC register, EWB and return receipt.</li>
           </ul>
-          <button className="teal" onClick={onPrepare}>Prepare a challan with these controls →</button>
+          <button type="button" className="teal" onClick={onPrepare}>Prepare a challan with these controls →</button>
         </section>
 
         <section id="refs" aria-labelledby="h-refs">

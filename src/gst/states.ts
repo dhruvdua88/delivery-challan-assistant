@@ -48,16 +48,8 @@ export const STATE_BY_CODE: Record<string, string> = Object.fromEntries(
   STATES.map((s) => [s.code, s.name])
 );
 
-export const STATE_BY_NAME: Record<string, string> = Object.fromEntries(
-  STATES.map((s) => [s.name.toLowerCase(), s.code])
-);
-
 export function stateNameForCode(code: string): string | undefined {
   return STATE_BY_CODE[code];
-}
-
-export function stateCodeForName(name: string): string | undefined {
-  return STATE_BY_NAME[name.trim().toLowerCase()];
 }
 
 export function isValidStateCode(code: string): boolean {

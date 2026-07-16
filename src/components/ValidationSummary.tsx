@@ -13,8 +13,8 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
         <>
           <div className="section-h" style={{ color: "var(--red)" }}>Blocking errors — must fix before export</div>
           <div className="findings">
-            {result.errors.map((f, i) => (
-              <div key={i} className="finding error"><span>⛔</span><span>{f.message}</span></div>
+            {result.errors.map((f) => (
+              <div key={`err:${f.message}`} className="finding error"><span>⛔</span><span>{f.message}</span></div>
             ))}
           </div>
         </>
@@ -24,8 +24,8 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
         <>
           <div className="section-h" style={{ color: "var(--amber)" }}>Dispatch warnings — review before movement</div>
           <div className="findings">
-            {result.warnings.map((f, i) => (
-              <div key={i} className="finding warning"><span>⚠️</span><span>{f.message}</span></div>
+            {result.warnings.map((f) => (
+              <div key={`warn:${f.message}`} className="finding warning"><span>⚠️</span><span>{f.message}</span></div>
             ))}
           </div>
         </>
@@ -35,8 +35,8 @@ export function ValidationSummary({ result }: { result: ValidationResult }) {
         <>
           <div className="section-h" style={{ color: "var(--green)" }}>Passed controls</div>
           <div className="findings">
-            {result.passed.map((f, i) => (
-              <div key={i} className="finding pass"><span>✓</span><span>{f.message}</span></div>
+            {result.passed.map((f) => (
+              <div key={`pass:${f.message}`} className="finding pass"><span>✓</span><span>{f.message}</span></div>
             ))}
           </div>
         </>

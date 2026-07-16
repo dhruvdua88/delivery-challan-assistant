@@ -1,7 +1,5 @@
 // Unit Quantity Codes. Short curated set for v1 delivery challans plus the
 // full GSTN UQC master so exports can carry a portal-valid code.
-export const UQC_QUICK = ["NOS", "PCS", "BOX", "SET", "KGS"] as const;
-
 // GSTN-recognised UQC codes (subset commonly used; portal rejects others).
 export const UQC_MASTER: { code: string; label: string }[] = [
   { code: "NOS", label: "Numbers" },
