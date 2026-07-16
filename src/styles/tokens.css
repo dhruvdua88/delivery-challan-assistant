@@ -126,6 +126,11 @@ details.why ul { margin: 8px 0; padding-left: 20px; color: var(--muted); }
 .notice { font-size: 12px; color: var(--muted); background: var(--pale); padding: 8px 12px; border-radius: 6px; margin-top: 10px; }
 .total-strip { display: flex; gap: 20px; margin-top: 10px; font-weight: 700; color: var(--navy); }
 
+/* ---- Dashboard ---- */
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 10px; }
+.dash-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px 4px; background: #fff; }
+.dash-h { font-weight: 700; color: var(--navy); font-size: 13px; margin-bottom: 2px; }
+
 /* ---- Templates ---- */
 .template-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
 .template-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; background: #fbfdff; }

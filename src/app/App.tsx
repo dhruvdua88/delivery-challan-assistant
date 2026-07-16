@@ -21,6 +21,7 @@ import { ChallanPreview } from "../components/ChallanPreview";
 const Guide = lazy(() => import("../components/Guide").then((m) => ({ default: m.Guide })));
 const Templates = lazy(() => import("../components/Templates").then((m) => ({ default: m.Templates })));
 const Register = lazy(() => import("../components/Register").then((m) => ({ default: m.Register })));
+const Dashboard = lazy(() => import("../components/Dashboard").then((m) => ({ default: m.Dashboard })));
 import { wordFileName, excelFileName, jsonFileName, isoToDdmmyyyy } from "../exports/filenames";
 import { sampleChallan } from "../features/transaction/sample";
 import {
@@ -45,6 +46,7 @@ export default function App() {
   const [showCompany, setShowCompany] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [autosave, setAutosave] = useState(() => isAutosaveEnabled());
   const [companyRev, setCompanyRev] = useState(0); // bump when company master changes
 
@@ -168,6 +170,7 @@ export default function App() {
           <button type="button" className={view === "guide" ? "" : "secondary"} onClick={() => setView((v) => (v === "guide" ? "prepare" : "guide"))}>{view === "guide" ? "← Back to form" : "📘 Guide"}</button>
           <button type="button" className="secondary" onClick={() => setShowTemplates((s) => !s)}>Templates</button>
           <button type="button" className="secondary" onClick={() => setShowRegister((s) => !s)}>Register</button>
+          <button type="button" className="secondary" onClick={() => setShowDashboard((s) => !s)}>Dashboard</button>
           <button type="button" className="secondary" onClick={() => { if (confirm("Load generic sample data? This replaces the current challan.")) { setC(sampleChallan()); setStep(0); } }}>Load sample</button>
           <button type="button" className="secondary" onClick={() => setShowCompany((s) => !s)}>Company Master</button>
           <button type="button" className="ghost" style={{ color: "#fff" }} onClick={() => { if (confirm("Start a new challan? Unsaved data will be cleared.")) { setC(emptyChallan()); setStep(0); } }}>New</button>
@@ -183,6 +186,8 @@ export default function App() {
       {showTemplates && <Suspense fallback={<div className="card"><p className="hint">Loading templates…</p></div>}><Templates current={c} onLoad={(loaded) => { setC(loaded); setStep(0); }} onClose={() => setShowTemplates(false)} /></Suspense>}
 
       {showRegister && <Suspense fallback={<div className="card"><p className="hint">Loading register…</p></div>}><Register onClose={() => setShowRegister(false)} /></Suspense>}
+
+      {showDashboard && <Suspense fallback={<div className="card"><p className="hint">Loading dashboard…</p></div>}><Dashboard onClose={() => setShowDashboard(false)} /></Suspense>}
 
       {showCompany && <CompanyMaster onClose={() => setShowCompany(false)} onApply={(p) => setC((cur) => ({ ...cur, billFrom: p }))} onSaved={() => setCompanyRev((r) => r + 1)} />}
 
